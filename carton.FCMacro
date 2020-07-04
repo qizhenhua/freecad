@@ -1,0 +1,169 @@
+#Carton 3D model maker for FreeCAD
+#Writen by Qi Zhenhua 2020/06/28
+import FreeCAD
+import Part
+import PartDesign
+import PartDesignGui
+
+def bend_Angelcreater(my_face,thickness,my_angle,edgeselect,flag):
+    list_longedge=[]
+    for i in my_face.Edges:
+        if i.Length > thickness:
+            list_longedge.append(i)
+    my_edge = list_longedge[edgeselect]
+    if flag:
+        vp1=my_edge.Vertexes[0].Point
+        vp2=my_edge.Vertexes[1].Point.sub(vp1)
+    else:
+        vp1=my_edge.Vertexes[1].Point
+        vp2=my_edge.Vertexes[0].Point.sub(vp1)
+    my_solid=my_face.revolve(vp1,vp2,my_angle)
+    Part.show(my_solid)
+    end_face=my_solid.Faces[4]
+    return end_face
+
+def bend_Flatcreater(my_face,my_length):
+    my_plane=my_face.Surface
+    my_vector=my_plane.Axis * my_length
+    my_solid = my_face.extrude(my_vector)
+    Part.show(my_solid)
+    end_face=my_solid.Faces[5]
+    return end_face
+
+def board_extrude(my_face,my_length):
+    my_plane=my_face.Surface
+    my_vector=my_plane.Axis * my_length
+    my_solid = my_face.extrude(my_vector)
+    Part.show(my_solid)
+    end_face=[]
+    max_length=0
+    for i in my_solid.Faces:
+        if i.Length > max_length:
+            max_length = i.Length
+    for i in my_solid.Faces:
+        if not my_face.isSame(i):
+            if i.Length < max_length:
+                end_face.append(i)
+    return end_face
+
+def create_Carton3D(my_doc,L,W,H,T,angle,position=FreeCAD.Vector(0.00,0.00,0.00),
+                                rotation=FreeCAD.Rotation(1.00,0.00,0.00,1.00)):
+    grp=my_doc.addObject("App::DocumentObjectGroup", "Carton")
+    list_obj=[]
+    board_plane = my_doc.addObject("Part::Plane","Plane")
+    board_plane.Length = L
+    board_plane.Width = T
+    board_plane.Placement=FreeCAD.Placement(position,rotation)
+    my_doc.recompute()
+    a=board_plane.Shape
+
+    a=bend_Flatcreater(a,-W/2)
+    a=bend_Angelcreater(a,T,angle,1,1)
+
+    a=board_extrude(a,-H)
+    a1=a[2]
+    a1=bend_Angelcreater(a1,T,angle,1,1)
+    board_extrude(a1,-W/2)
+    a=a[1]
+    a=bend_Angelcreater(a,T,angle,1,0)
+
+    a=board_extrude(a,W)
+    a1=a[0]
+    a1=bend_Angelcreater(a1,T,angle+2,1,0)
+    board_extrude(a1,W/2)
+    a1=a[1]
+    a1=bend_Angelcreater(a1,T,angle+2,1,1)
+    board_extrude(a1,-W/2)
+    a=a[2]
+    a=bend_Angelcreater(a,T,angle,1,0)
+
+    a=board_extrude(a,L)
+    a1=a[0]
+    a1=bend_Angelcreater(a1,T,angle,1,0)
+    board_extrude(a1,W/2)
+    a1=a[1]
+    a1=bend_Angelcreater(a1,T,angle,1,1)
+    board_extrude(a1,-W/2)
+    a=a[2]
+    a=bend_Angelcreater(a,T,angle,1,0)
+
+    a=board_extrude(a,W)
+    a1=a[0]
+    a1=bend_Angelcreater(a1,T,angle+2,1,0)
+    board_extrude(a1,W/2)
+    a1=a[1]
+    a1=bend_Angelcreater(a1,T,angle+2,1,1)
+    board_extrude(a1,-W/2)
+    a=a[2]
+    a=bend_Angelcreater(a,T,angle+10,1,0)
+
+    a=board_extrude(a,20)
+
+def create_Cartonflat(my_doc,L,W,H,T,position=FreeCAD.Vector(0.00,0.00,0.00),
+                                rotation=FreeCAD.Rotation(1.00,0.00,0.00,1.00)):
+    grp=my_doc.addObject("App::DocumentObjectGroup", "Carton")
+    list_obj=[]
+    board_plane = my_doc.addObject("Part::Plane","Plane")
+    board_plane.Length = L
+    board_plane.Width = T
+    board_plane.Placement=FreeCAD.Placement(position,rotation)
+    my_doc.recompute()
+    a=board_plane.Shape
+
+    a=bend_Flatcreater(a,-W/2)
+    a=bend_Flatcreater(a,-10)
+
+    a=board_extrude(a,-H)
+    a1=a[2]
+    a1=bend_Flatcreater(a1,-10)
+    board_extrude(a1,-W/2)
+    a=a[1]
+    a=bend_Flatcreater(a,10)
+
+    a=board_extrude(a,W)
+    a1=a[0]
+    a1=bend_Flatcreater(a1,10)
+    board_extrude(a1,W/2)
+    a1=a[1]
+    a1=bend_Flatcreater(a1,-10)
+    board_extrude(a1,-W/2)
+    a=a[2]
+    a=bend_Flatcreater(a,10)
+
+    a=board_extrude(a,L)
+    a1=a[0]
+    a1=bend_Flatcreater(a1,10)
+    board_extrude(a1,W/2)
+    a1=a[1]
+    a1=bend_Flatcreater(a1,-10)
+    board_extrude(a1,-W/2)
+    a=a[2]
+    a=bend_Flatcreater(a,10)
+
+    a=board_extrude(a,W)
+    a1=a[0]
+    a1=bend_Flatcreater(a1,10)
+    board_extrude(a1,W/2)
+    a1=a[1]
+    a1=bend_Flatcreater(a1,-10)
+    board_extrude(a1,-W/2)
+    a=a[2]
+    a=bend_Flatcreater(a,10)
+
+    a=board_extrude(a,20)
+
+#    for obj in FreeCAD.ActiveDocument.Objects:
+#                if obj.Name != "Carton":
+#                    grp.addObject(obj)
+
+#============strat=============
+l,w,h,t=450,300,250,7
+angle=60
+doc = FreeCAD.newDocument("carton")
+
+create_Cartonflat(doc,l,w,h,t)
+create_Carton3D(doc,l,w,h,t,30)
+create_Carton3D(doc,l,w,h,t,90)
+
+Gui.SendMsgToActiveView("ViewFit")
+Gui.activeDocument().activeView().viewIsometric()

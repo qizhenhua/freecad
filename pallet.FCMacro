@@ -1,0 +1,239 @@
+#Pallet 3D model maker for FreeCAD
+#Writen by Qi Zhenhua 2020/06/17
+import FreeCAD
+import PartDesign
+import PartDesignGui
+
+from PySide import QtGui, QtCore
+
+class ExampleModalGuiClass(QtGui.QDialog):
+    """"""
+    def __init__(self):
+        super(ExampleModalGuiClass, self).__init__()
+        self.initUI()
+
+    def initUI(self):
+        # create our window
+        # define windowxLoc,yLoc,xDim,yDim
+        self.setGeometry(500, 150, 350, 400)
+        self.setWindowTitle("Pallet_carton simulator")
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+
+        # create some Labels
+        list_title=["Pallet Length(PX)",
+                    "Pallet Width(PY)",
+                    "Pallet Height",
+                    "Broad Thickness",
+                    "Support Length",
+                    "Support Width",
+                    "Panel Width",
+                    "Quantity of Panel",
+                    "Quantity of Bridge",
+                    "Quantity of Bottom",
+                    "Carton inner L(CX)",
+                    "Carton inner W(CY)",
+                    "Carton inner Height",
+                    "Carton Quantity of L",
+                    "Carton Quantity of W",
+                    "Carton Quantity of H"]
+        list_default=[1200,1000,120,12,90,90,100,5,3,3,380,470,270,3,2,4]
+        self.list_text=[]
+        i=1
+        for labelname in list_title:
+                label =  QtGui.QLabel(labelname, self)
+                label.move(10,20*i+5)
+                #list_label.append(self.label)
+                textInput = QtGui.QLineEdit(self)
+                textInput.setText(str(list_default[i-1]))
+                textInput.setFixedWidth(80)
+                textInput.move(120, 20*i)
+                self.list_text.append(textInput)
+                i=i+1
+
+        self.label1 = QtGui.QLabel("?                                         ", self)
+        self.label1.move(205, 285)
+        self.label2 = QtGui.QLabel("?                                         ", self)
+        self.label2.move(205, 305)
+        self.label3 = QtGui.QLabel("?                                         ", self)
+        self.label3.move(205, 325)
+
+        # exchange button
+        exchangeButton = QtGui.QPushButton('Exchange L&W', self)
+        exchangeButton.clicked.connect(self.onExchange)
+        exchangeButton.setAutoDefault(True)
+        exchangeButton.move(220, 230)
+        # evaluate button
+        evaluateButton = QtGui.QPushButton('Evaluate', self)
+        evaluateButton.clicked.connect(self.onEvaluate)
+        evaluateButton.setAutoDefault(True)
+        evaluateButton.move(220, 340)
+        # cancel button
+        cancelButton = QtGui.QPushButton('Cancel', self)
+        cancelButton.clicked.connect(self.onCancel)
+        cancelButton.setAutoDefault(True)
+        cancelButton.move(50, 370)
+        # OK button
+        okButton = QtGui.QPushButton('Create3D', self)
+        okButton.clicked.connect(self.onCreate3D)
+        okButton.move(200, 370)
+
+    def onEvaluate(self):
+        self.list_data=[]
+        for item in self.list_text:
+            i=item.text()
+            self.list_data.append(float(i))
+        PX=self.list_data[0]
+        PY=self.list_data[1]
+        PZ=self.list_data[2]
+        CX=self.list_data[10]+20
+        CY=self.list_data[11]+20
+        CZ=self.list_data[12]+20
+        nX=self.list_data[13]
+        nY=self.list_data[14]
+        nZ=self.list_data[15]
+
+        Rx=PX-(CX*nX)
+        Ry=PY-(CY*nY)
+        self.label1.setText("Total: {0}, over:{1}".format(CX*nX,str(Rx/2)))
+        self.label2.setText("Total: {0}, over:{1}".format(CY*nY,str(Ry/2)))
+        self.label3.setText("Total H plus pallet: "+str(PZ+CZ*nZ))
+
+    def onExchange(self):
+        a=self.list_text[10].text()
+        b=self.list_text[11].text()
+        self.list_text[10].setText(b)
+        self.list_text[11].setText(a)
+
+    def onCancel(self):
+        self.close()
+    def onCreate3D(self):
+        self.list_data=[]
+        for item in self.list_text:
+            i=item.text()
+            self.list_data.append(float(i))
+        my_pallet=Pallet_Creater(self.list_data)
+        my_pallet.Create_3D()
+
+
+#if form.result==userCancelled:
+#    pass # steps to handle user clicking Cancel
+#if form.result==userOK:
+#    list_data = form.list_data
+
+#list_data = form.list_data
+#print(list_data)
+
+
+# code for draw pallet & carton in 3D************************************
+
+#==========rebuild--------------
+class Pallet_Creater():
+    def __init__(self,list_data):
+        self.L_pallet        = list_data[0]
+        self.W_pallet 	= list_data[1]
+        self.H_pallet	= list_data[2]
+        self.T_wood	= list_data[3]
+        self.L_support 	= list_data[4]
+        self.W_support 	= list_data[5]
+        self.W_panel 	= list_data[6]
+        self.n_panel 	= list_data[7]
+        self.n_bridge 	= list_data[8]
+        self.n_bottom 	= list_data[9]
+
+        self.L_carton	= list_data[10]+20
+        self.W_carton	= list_data[11]+20
+        self.H_carton		= list_data[12]+20+20
+        self.nx_carton	= list_data[13]
+        self.ny_carton	= list_data[14]
+        self.nz_carton	= list_data[15]
+        
+        self.list_bottom=[self.n_bottom,self.L_pallet,self.W_support,self.T_wood]
+        self.list_support=[int(self.n_bottom*self.n_bridge),self.L_support,
+                          self.W_support,self.H_pallet-3*self.T_wood]
+        self.list_bridge=[self.n_bridge,self.L_support,self.W_pallet,self.T_wood]
+        self.list_panel	=[self.n_panel,self.L_pallet,self.W_panel,self.T_wood]
+        print(self.list_panel)
+        self.doc = FreeCAD.newDocument("pallet")
+
+    def Create_3D(self):
+        
+        mylist=self.list_bottom    
+        self.makepallet("bottom",mylist[1],mylist[2],mylist[3],
+                   0,0,(self.W_pallet-mylist[2])/(self.n_bottom-1),
+                   self.n_bottom,0)
+        mylist=self.list_support
+        self.makepallet("support",mylist[1],mylist[2],mylist[3],
+                   (self.L_pallet-mylist[1])/(self.n_bridge-1),
+                   self.n_bridge,
+                   (self.W_pallet-mylist[2])/(self.n_bottom-1),
+                   self.n_bottom,
+                   self.list_bottom[3])
+        mylist=self.list_bridge
+        self.makepallet("bridge",mylist[1],mylist[2],mylist[3],
+                   (self.L_pallet-mylist[1])/(self.n_bridge-1),
+                   self.n_bridge,
+                   0,0,
+                   self.list_bottom[3]+self.list_support[3])
+        mylist=self.list_panel
+        self.makepallet("panel",mylist[1],mylist[2],mylist[3],
+                   0,0,
+                   (self.W_pallet-mylist[2])/(self.n_panel-1) ,
+                   self.n_panel,
+                   self.list_bottom[3]+self.list_support[3]+self.list_bridge[3])
+
+        doc=App.activeDocument() 
+        grp=doc.addObject("App::DocumentObjectGroup", "Pallet") 
+        for obj in FreeCAD.ActiveDocument.Objects:
+            if obj.Name != "Pallet":
+                grp.addObject(obj) # adds the lin object to the group grp
+
+        self.makecarton("carton",self.L_carton,self.W_carton,self.H_carton,
+           self.nx_carton,self.ny_carton,self.nz_carton,
+           (self.L_pallet-self.L_carton*self.nx_carton)/2,
+           (self.W_pallet-self.W_carton*self.ny_carton)/2,
+           self.H_pallet)
+
+        grp=doc.addObject("App::DocumentObjectGroup", "Cargo") 
+        for obj in FreeCAD.ActiveDocument.Objects:
+            if obj.Label[0:6] == "carton":
+                grp.addObject(obj) 
+
+        Gui.SendMsgToActiveView("ViewFit")
+        Gui.activeDocument().activeView().viewIsometric()
+       
+
+    def makebox(self,boxname,length,width,height,x,y,z):
+        box = self.doc.addObject("Part::Box",boxname)
+        self.doc.recompute()
+        box.Length,box.Width,box.Height = length, width, height
+        box.Placement.Base = FreeCAD.Vector(x,y,z)
+
+    def makepallet(self, name,x,y,z,dx,xn,dy,yn,dz):
+        if xn < 1 : i=1
+        else:		i=xn
+        while i>0:
+            if yn < 1 :	j=1
+            else:		j=yn
+            while j>0:
+                self.makebox(name+str(i)+str(j),x,y,z,dx*(i-1),dy*(j-1),dz)
+                j -= 1
+            i -= 1 
+
+    def makecarton(self, name,L,W,H,xn,yn,zn,dx,dy,dz):
+        i=xn
+        while i>0:
+            j=yn
+            while j>0:
+                k=zn
+                while k>0:
+                    self.makebox(name+str(i)+str(j)+str(k),
+                            L,W,H,L*(i-1)+dx,W*(j-1)+dy,H*(k-1)+dz)
+                    k -= 1
+                j -= 1
+            i -= 1 
+
+
+# main code ************************************************************
+
+form = ExampleModalGuiClass()
+form.exec_()
